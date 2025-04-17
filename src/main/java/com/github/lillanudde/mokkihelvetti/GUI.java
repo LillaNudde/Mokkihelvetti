@@ -4,13 +4,19 @@ import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.control.*;
 
 public class GUI extends Application
 {
+
+public static void main(String[] args) 
+{
+    launch(args);
+}
+
+
 
     @Override
     public void start(Stage primaryStage)
@@ -21,18 +27,20 @@ public class GUI extends Application
         Button billingManagement = new Button("Laskujen hallinta ja seuranta");
         Button accommodationReports = new Button("Majoittumisen raportointi");
 
-        HBox topRow = new HBox(cabinManagement, reservationManagement);
-        topRow.setAlignment(Pos.CENTER);
-        topRow.setSpacing(10);
-        HBox middleRow = new HBox(customerManagement, billingManagement);
-        middleRow.setAlignment(Pos.CENTER);
-        middleRow.setSpacing(10);
-        HBox bottomRow = new HBox(accommodationReports);
-        bottomRow.setAlignment(Pos.CENTER);
-        bottomRow.setSpacing(10);
-        VBox buttonBox = new VBox(topRow, middleRow, bottomRow);
+        cabinManagement.setPrefWidth(250);
+        cabinManagement.setPrefHeight(50);
+        reservationManagement.setPrefWidth(250);
+        reservationManagement.setPrefHeight(50);
+        customerManagement.setPrefWidth(250);
+        customerManagement.setPrefHeight(50);
+        billingManagement.setPrefWidth(250);
+        billingManagement.setPrefHeight(50);
+        accommodationReports.setPrefWidth(250);
+        accommodationReports.setPrefHeight(50);
+
+        VBox buttonBox = new VBox(cabinManagement, reservationManagement, customerManagement, billingManagement, accommodationReports);
+        buttonBox.setSpacing(25);
         buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setSpacing(10);
 
         primaryStage.setTitle("GUI");
         BorderPane root = new BorderPane();
