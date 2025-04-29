@@ -1,4 +1,6 @@
-module com.github.lillanudde.mokkihelvetti {
+module com.github.lillanudde.mokkihelvetti 
+{
+    requires java.sql;
     requires javafx.controls;
     requires javafx.fxml;
 
