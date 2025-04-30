@@ -6,6 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.control.*;
@@ -57,6 +58,11 @@ public class GUI extends Application
     // Main menu
     private void showMainMenu()
     {
+        // Clear the window
+        mainLayout.setTop(null);
+        mainLayout.setCenter(null);
+
+        // Create VBox with buttons and their functions
        VBox buttonBox = new VBox(
             createMenuButton("Mökkien hallinta", this::showCabinManagement),
             createMenuButton("Majoitusvarausten hallinta", this::showReservationManagement),
@@ -73,7 +79,7 @@ public class GUI extends Application
     private void showCabinManagement() 
     {
         // Clear the window
-        mainLayout.setCenter(new VBox());
+        mainLayout.setCenter(null);
 
         // Dataless TableView
         TableView<Cabin> cabinTable = new TableView<>();
@@ -132,9 +138,100 @@ public class GUI extends Application
         Button backButton = new Button("Takaisin");
         backButton.setOnAction(e -> showMainMenu());
 
-        mainLayout.setTop(backButton);
+        Button modifyButton = new Button("Muokkaa");
+        modifyButton.setOnAction(e ->
+        {
+            Cabin selectedCabin = cabinTable.getSelectionModel().getSelectedItem();
+            if (selectedCabin != null)
+            {
+                openCabinEditWindow(selectedCabin, data);
+            }
+            else
+            {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Valitse rivi muokattavaksi");
+                alert.showAndWait();
+            }
+        });
+
+        HBox topButtonBox = new HBox(backButton, modifyButton);
+
+        mainLayout.setTop(topButtonBox);
 
         System.out.println("Cabin Management opened.");
+    }
+
+    private void openCabinEditWindow(Cabin cabin, ObservableList<Cabin> tableData)
+    {
+        // Pop-up window
+        Stage window = new Stage();
+        window.setTitle("Muokkaa mökin tietoja");
+
+        // Modifiable fields
+        TextField priceField = new TextField(String.valueOf(cabin.getWeeklyPrice()));
+        TextField addressField = new TextField(String.valueOf(cabin.getCabinAddress()));
+        CheckBox petBox = new CheckBox("Lemmikit Sallittu");
+        petBox.setSelected(cabin.isPetsAllowed());
+        CheckBox airConBox = new CheckBox("Ilmastointi");
+        airConBox.setSelected(cabin.isAirConditioning());
+        CheckBox terraceBox = new CheckBox("Terassi");
+        terraceBox.setSelected(cabin.isTerrace());
+        CheckBox sheetBox = new CheckBox("Liinavaatteet");
+        sheetBox.setSelected(cabin.isSheets());
+        CheckBox reservationBox = new CheckBox("Varattu");
+        reservationBox.setSelected(cabin.isReserved());
+        TextField bedField = new TextField(String.valueOf(cabin.getBedAmount()));
+        TextField wcField = new TextField(String.valueOf(cabin.getWcAmount()));
+        TextField summaryField = new TextField(String.valueOf(cabin.getSummary()));
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                cabin.setWeeklyPrice(Integer.parseInt(priceField.getText()));
+                cabin.setCabinAddress(addressField.getText());
+                cabin.setPetsAllowed(petBox.isSelected());
+                cabin.setAirConditioning(airConBox.isSelected());
+                cabin.setTerrace(terraceBox.isSelected());
+                cabin.setSheets(sheetBox.isSelected());
+                cabin.setReserved(reservationBox.isSelected());
+                cabin.setBedAmount(Integer.parseInt(bedField.getText()));
+                cabin.setWcAmount(Integer.parseInt(wcField.getText()));
+                cabin.setSummary(summaryField.getText());
+
+                // Add SQL DB Update here
+
+                // Close edit window and refresh table
+                window.close();
+                showCabinManagement(); // .refresh NOT POSSIBLE WITHOUT FUCKERY
+
+            }
+            catch (NumberFormatException nfe)
+            {
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (Exception ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa.");
+                error.showAndWait();
+            }
+        });
+
+        VBox layout = new VBox(
+            priceField, addressField, petBox, 
+            airConBox, terraceBox, sheetBox,
+            reservationBox, bedField, wcField, 
+            summaryField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+
     }
 
     private void showReservationManagement() 
