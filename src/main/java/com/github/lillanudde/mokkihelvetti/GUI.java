@@ -11,6 +11,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+
+import java.sql.SQLException;
 import java.util.List;
 
 
@@ -153,7 +155,52 @@ public class GUI extends Application
             }
         });
 
-        HBox topButtonBox = new HBox(backButton, modifyButton);
+
+        Button addButton = new Button("Lisää");
+        addButton.setOnAction(e -> openCabinAddWindow());
+
+        Button deleteButton = new Button("Poista");
+        deleteButton.setOnAction(e ->
+        {
+            Cabin selectedCabin = cabinTable.getSelectionModel().getSelectedItem();
+
+            if (selectedCabin == null)
+            {
+                Alert error = new Alert(Alert.AlertType.WARNING, "Valitse Mökki poistaaksesi");
+                error.showAndWait();
+                return;
+            }
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista Poisto");
+            confirmation.setHeaderText("Oletko varma, että haluat poistaa mökin?");
+            confirmation.setContentText("Poistoa EI VOI perua");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        Cabin.removeCabinFromDatabase(selectedCabin);
+
+                        cabinTable.getItems().remove(selectedCabin);
+                    }
+                    
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe poistamisessa");
+                        error.showAndWait();
+                    }
+                }
+                    
+            });
+
+        });
+
+
+
+        HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
 
         mainLayout.setTop(topButtonBox);
 
@@ -187,37 +234,51 @@ public class GUI extends Application
         Button saveButton = new Button("Tallenna");
         saveButton.setOnAction(e ->
         {
-            try
-            {
-                cabin.setWeeklyPrice(Integer.parseInt(priceField.getText()));
-                cabin.setCabinAddress(addressField.getText());
-                cabin.setPetsAllowed(petBox.isSelected());
-                cabin.setAirConditioning(airConBox.isSelected());
-                cabin.setTerrace(terraceBox.isSelected());
-                cabin.setSheets(sheetBox.isSelected());
-                cabin.setReserved(reservationBox.isSelected());
-                cabin.setBedAmount(Integer.parseInt(bedField.getText()));
-                cabin.setWcAmount(Integer.parseInt(wcField.getText()));
-                cabin.setSummary(summaryField.getText());
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista muutokset");
+            confirmation.setHeaderText("Oletko varma, että haluat tallentaa muutokset?");
+            confirmation.setContentText("Tallennusta EI VOI perua!");
 
-                // Add SQL DB Update here
-
-                // Close edit window and refresh table
-                window.close();
-                showCabinManagement(); // .refresh NOT POSSIBLE WITHOUT FUCKERY
-
-            }
-            catch (NumberFormatException nfe)
+            confirmation.showAndWait().ifPresent(response ->
             {
-                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
-                error.showAndWait();
-            }
-            catch (Exception ex)
-            {
-                ex.printStackTrace();
-                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa.");
-                error.showAndWait();
-            }
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        cabin.setWeeklyPrice(Integer.parseInt(priceField.getText()));
+                        cabin.setCabinAddress(addressField.getText());
+                        cabin.setPetsAllowed(petBox.isSelected());
+                        cabin.setAirConditioning(airConBox.isSelected());
+                        cabin.setTerrace(terraceBox.isSelected());
+                        cabin.setSheets(sheetBox.isSelected());
+                        cabin.setReserved(reservationBox.isSelected());
+                        cabin.setBedAmount(Integer.parseInt(bedField.getText()));
+                        cabin.setWcAmount(Integer.parseInt(wcField.getText()));
+                        cabin.setSummary(summaryField.getText());
+        
+                        // Add SQL DB Update here
+                        Cabin.updateCabinInDatabase(cabin);
+        
+                        // Close edit window and refresh table
+                        window.close();
+                        showCabinManagement(); // .refresh NOT POSSIBLE WITHOUT FUCKERY
+        
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa.");
+                        error.showAndWait();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa.");
+                        error.showAndWait();
+                    }
+                }
+            });
+
+
         });
 
         VBox layout = new VBox(
@@ -225,6 +286,102 @@ public class GUI extends Application
             airConBox, terraceBox, sheetBox,
             reservationBox, bedField, wcField, 
             summaryField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+
+    }
+
+    private void openCabinAddWindow()
+    {
+        Stage window = new Stage();
+        window.setTitle("Lisää Mökki");
+
+
+        int newId;
+        try
+        {
+            newId = Cabin.getNewId();
+        }
+        catch (SQLException ex)
+        {
+            ex.printStackTrace();
+            Alert error = new Alert(Alert.AlertType.ERROR, "Tietokantavirhe ID haussa");
+            error.showAndWait();
+            return;
+        }
+
+        TextField customerField = new TextField();
+        TextField priceField = new TextField();
+        TextField addressField = new TextField();
+        CheckBox petBox = new CheckBox("Lemmikit Sallittu");
+        CheckBox airConBox = new CheckBox("Ilmastointi");
+        CheckBox terraceBox = new CheckBox("Terassi");
+        CheckBox sheetBox = new CheckBox("Liinavaatteet");
+        CheckBox reservationBox = new CheckBox("Varattu");
+        TextField bedField = new TextField();
+        TextField wcField = new TextField();
+        TextField summaryField = new TextField();
+
+        customerField.setPromptText("Asiakas ID");
+        priceField.setPromptText("Viikkohinta");
+        addressField.setPromptText("Osoite");
+        bedField.setPromptText("Sänkyjen määrä");
+        wcField.setPromptText("Vessojen määrä");
+        summaryField.setPromptText("Tiivistelmä");
+
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                Cabin newCabin = new Cabin(
+                    newId,
+                    Integer.parseInt(customerField.getText()),
+                    Integer.parseInt(priceField.getText()),
+                    addressField.getText(),
+                    petBox.isSelected(),
+                    airConBox.isSelected(),
+                    terraceBox.isSelected(),
+                    sheetBox.isSelected(),
+                    reservationBox.isSelected(),
+                    Integer.parseInt(bedField.getText()),
+                    Integer.parseInt(wcField.getText()),
+                    summaryField.getText()
+                    );
+
+                    Cabin.addCabinToDatabase(newCabin);
+
+                    window.close();
+                    showCabinManagement();
+                    
+            }
+            catch (NumberFormatException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (SQLException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+                error.showAndWait();
+            }
+        });
+
+        VBox layout = new VBox(
+            new Label("Asiakas ID:"), customerField,
+            new Label("Viikkohinta:"), priceField,
+            new Label("Osoite:"), addressField,
+            petBox, airConBox, terraceBox, sheetBox, reservationBox,
+            new Label ("Sängyt:"), bedField,
+            new Label("Vessat:"), wcField,
+            new Label("Tiivistelmä:"), summaryField,
+            saveButton
         );
 
         layout.setSpacing(10);
