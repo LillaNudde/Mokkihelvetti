@@ -9,7 +9,7 @@ import java.util.Set;
 
 public class Cabin
 {
-
+    // Fields
     private int cabinId;
     private int customerId;
     private int weeklyPrice;
@@ -25,6 +25,7 @@ public class Cabin
     // Database address "jdbc:sqlite:DISK:\\Path\\To\\File.db"
     private static final String DB_URL = "jdbc:sqlite:D:\\Documents\\Mökkihelvetti\\database.db";
 
+    // Getters & Setters
     public int getCabinId() 
     {
         return cabinId;
@@ -145,49 +146,55 @@ public class Cabin
         this.summary = summary;
     }
 
-public static int getNewId() throws SQLException {
-    String sql = "SELECT Huone_id FROM Mökit ORDER BY Huone_id ASC";
-    Set<Integer> existingIds = new HashSet<>();
-
-    try (Connection conn = DriverManager.getConnection(DB_URL);
-         Statement stmt = conn.createStatement();
-         ResultSet rs = stmt.executeQuery(sql)) {
-
-        while (rs.next()) {
-            existingIds.add(rs.getInt("Huone_id"));
-        }
-    }
-
-    int id = 1; // Start from 1 instead of 0
-    while (existingIds.contains(id)) {
-        id++;
-    }
-    return id;
-}
-
-
-    public Cabin(
+    // Constructor
+    public Cabin
+    (
         int cabinId, int customerId, int weeklyPrice, String cabinAddress,
         boolean petsAllowed, boolean airConditioning, boolean terrace, boolean sheets,
         boolean reserved, int bedAmount, int wcAmount, String summary
-        )
-        {
-            this.cabinId = cabinId;
-            this.customerId = customerId;
-            this.weeklyPrice = weeklyPrice;
-            this.cabinAddress = cabinAddress;
-            this.petsAllowed = petsAllowed;
-            this.airConditioning = airConditioning;
-            this.terrace = terrace;
-            this.sheets = sheets;
-            this.reserved = reserved;
-            this.bedAmount = bedAmount;
-            this.wcAmount = wcAmount;
-            this.summary = summary;
-        }
+    )
+    {
+        this.cabinId = cabinId;
+        this.customerId = customerId;
+        this.weeklyPrice = weeklyPrice;
+        this.cabinAddress = cabinAddress;
+        this.petsAllowed = petsAllowed;
+        this.airConditioning = airConditioning;
+        this.terrace = terrace;
+        this.sheets = sheets;
+        this.reserved = reserved;
+        this.bedAmount = bedAmount;
+        this.wcAmount = wcAmount;
+        this.summary = summary;
+    }
 
-    public static List<Cabin> getCabinsFromDatabase() 
+    // Getter for lowest available Cabin ID
+    public static int getNewId() throws SQLException 
+    {
+        String sql = "SELECT Huone_id FROM Mökit ORDER BY Huone_id ASC";
+        Set<Integer> existingIds = new HashSet<>();
+
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) 
+            {
+            while (rs.next()) 
+            {
+                existingIds.add(rs.getInt("Huone_id"));
+            }
+            }
+
+        int id = 1;
+        while (existingIds.contains(id)) 
         {
+            id++;
+        }
+        return id;
+    }
+
+    // Getter for every Cabin in Mökit table
+    public static List<Cabin> getCabinsFromDatabase() 
+    {
             List<Cabin> cabins = new ArrayList<>();
             String sql = "SELECT * FROM Mökit";
         
@@ -197,7 +204,8 @@ public static int getNewId() throws SQLException {
             {
         
                 // Loop through table
-                while (rs.next()) {
+                while (rs.next()) 
+                {
                     int cabinId = rs.getInt("huone_id");
                     int customerId = rs.getInt("Asiakas_id");
                     int weeklyPrice = rs.getInt("ViikkoHinta");
@@ -224,6 +232,7 @@ public static int getNewId() throws SQLException {
             return cabins;
         }
         
+    // Method for updating Cabin information
     public static void updateCabinInDatabase(Cabin cabin)
     {
         try (Connection connection = DriverManager.getConnection(DB_URL);
@@ -251,6 +260,7 @@ public static int getNewId() throws SQLException {
         }
     }
 
+    // Method to create new Cabin
     public static void addCabinToDatabase(Cabin cabin) throws SQLException
     {
         String sql = "INSERT INTO Mökit (Huone_id, Asiakas_id, ViikkoHinta, Osoite, Sallitaanko_lemmikit, Ilmastointi, Terassi, Liinavaatteet, Varattu, Montako_sänkyä, Montako_vessa, tiivistelmä)" +
@@ -276,6 +286,7 @@ public static int getNewId() throws SQLException {
         }
     }
 
+    // Method to remove Cabin
     public static void removeCabinFromDatabase(Cabin cabin) throws SQLException
     {
         String sql = "DELETE FROM Mökit WHERE Huone_id=?";
