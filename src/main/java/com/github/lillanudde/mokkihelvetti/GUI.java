@@ -12,7 +12,9 @@ import javafx.stage.Stage;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -78,6 +80,7 @@ public class GUI extends Application
        mainLayout.setCenter(buttonBox);
     }
 
+    // Cabin Management menu
     private void showCabinManagement() 
     {
         // Clear the window
@@ -130,13 +133,15 @@ public class GUI extends Application
             petsAllowed, airConditioning, terrace, sheets, 
             reserved, bedAmount, wcAmount, summary);
 
+        // Add Cabins to list
         List<Cabin> cabins = Cabin.getCabinsFromDatabase();
-
         ObservableList<Cabin> data = FXCollections.observableArrayList(cabins);
         cabinTable.setItems(data);
 
+        // Show list
         mainLayout.setCenter(cabinTable);
 
+        // Buttons
         Button backButton = new Button("Takaisin");
         backButton.setOnAction(e -> showMainMenu());
 
@@ -199,7 +204,7 @@ public class GUI extends Application
         });
 
 
-
+        // Show buttons
         HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
 
         mainLayout.setTop(topButtonBox);
@@ -207,6 +212,7 @@ public class GUI extends Application
         System.out.println("Cabin Management opened.");
     }
 
+    // Cabin edit window
     private void openCabinEditWindow(Cabin cabin, ObservableList<Cabin> tableData)
     {
         // Pop-up window
@@ -256,12 +262,12 @@ public class GUI extends Application
                         cabin.setWcAmount(Integer.parseInt(wcField.getText()));
                         cabin.setSummary(summaryField.getText());
         
-                        // Add SQL DB Update here
+                        // Update table in database
                         Cabin.updateCabinInDatabase(cabin);
         
                         // Close edit window and refresh table
                         window.close();
-                        showCabinManagement(); // .refresh NOT POSSIBLE WITHOUT FUCKERY
+                        showCabinManagement(); // .refresh NOT POSSIBLE WITHOUT VOODOO
         
                     }
                     catch (NumberFormatException nfe)
@@ -277,10 +283,9 @@ public class GUI extends Application
                     }
                 }
             });
-
-
         });
 
+        // Show layout
         VBox layout = new VBox(
             priceField, addressField, petBox, 
             airConBox, terraceBox, sheetBox,
@@ -295,12 +300,13 @@ public class GUI extends Application
 
     }
 
+    // Cabin add window
     private void openCabinAddWindow()
     {
         Stage window = new Stage();
         window.setTitle("Lisää Mökki");
 
-
+        // Get lowest available ID
         int newId;
         try
         {
@@ -314,6 +320,7 @@ public class GUI extends Application
             return;
         }
 
+        // Modifiable fields
         TextField customerField = new TextField();
         TextField priceField = new TextField();
         TextField addressField = new TextField();
@@ -326,6 +333,7 @@ public class GUI extends Application
         TextField wcField = new TextField();
         TextField summaryField = new TextField();
 
+        // Text for each text field
         customerField.setPromptText("Asiakas ID");
         priceField.setPromptText("Viikkohinta");
         addressField.setPromptText("Osoite");
@@ -333,6 +341,7 @@ public class GUI extends Application
         wcField.setPromptText("Vessojen määrä");
         summaryField.setPromptText("Tiivistelmä");
 
+        // Save button
         Button saveButton = new Button("Tallenna");
         saveButton.setOnAction(e ->
         {
@@ -373,6 +382,7 @@ public class GUI extends Application
             }
         });
 
+        // Show layout
         VBox layout = new VBox(
             new Label("Asiakas ID:"), customerField,
             new Label("Viikkohinta:"), priceField,
@@ -391,9 +401,280 @@ public class GUI extends Application
 
     }
 
+    // Reservation management menu
     private void showReservationManagement() 
     {
+
+        // Clear the window
+        mainLayout.setCenter(null);
+
+        // TableView
+        TableView<Reservation> reservationTable = new TableView<>();
+
+        // Column hell
+        TableColumn<Reservation, Integer> reservationId = new TableColumn<>("Varaus ID");
+        reservationId.setCellValueFactory(new PropertyValueFactory<>("reservationId"));
+
+        TableColumn<Reservation, Integer> customerId = new TableColumn<>("Asiakas ID");
+        customerId.setCellValueFactory(new PropertyValueFactory<>("customerId"));
+
+        TableColumn<Reservation, Integer> cabinId = new TableColumn<>("Mökki ID");
+        cabinId.setCellValueFactory(new PropertyValueFactory<>("cabinId"));
+
+        TableColumn<Reservation, Date> startDate = new TableColumn<>("Alkamispäivä");
+        startDate.setCellValueFactory(new PropertyValueFactory<>("startDate"));
+
+        TableColumn<Reservation, Date> endDate = new TableColumn<>("Loppumispäivä");
+        endDate.setCellValueFactory(new PropertyValueFactory<>("endDate"));
+
+        TableColumn<Reservation, Date> creationDate = new TableColumn<>("Luomispäivä");
+        creationDate.setCellValueFactory(new PropertyValueFactory<>("creationDate"));
+
+        TableColumn<Reservation, Date> updateDate = new TableColumn<>("Päivityspäivä");
+        updateDate.setCellValueFactory(new PropertyValueFactory<>("updateDate"));
+
+        // Columns to table
+        reservationTable.getColumns().addAll(
+            reservationId, customerId, cabinId,
+            startDate, endDate, creationDate, updateDate);
+
+        // Add Reservations to list
+        List<Reservation> reservations = Reservation.getReservationsFromDatabase();
+        ObservableList<Reservation> data = FXCollections.observableArrayList(reservations);
+        reservationTable.setItems(data);
+
+        // Show list
+        mainLayout.setCenter(reservationTable);
+
+        // Buttons
+        Button backButton = new Button("Takaisin");
+        backButton.setOnAction(e -> showMainMenu());
+
+        Button modifyButton = new Button("Muokkaa");
+        modifyButton.setOnAction(e ->
+        {
+            Reservation selectedReservation = reservationTable.getSelectionModel().getSelectedItem();
+            if (selectedReservation != null)
+            {
+                openReservationEditWindow(selectedReservation, data);
+            }
+            else
+            {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Valitse rivi muokattavaksi");
+                alert.showAndWait();
+            }
+        });
+
+        Button addButton = new Button("Lisää");
+        addButton.setOnAction(e -> openReservationAddWindow());
+
+        Button deleteButton = new Button("Poista");
+        deleteButton.setOnAction(e ->
+        {
+            Reservation selectedReservation = reservationTable.getSelectionModel().getSelectedItem();
+
+            if (selectedReservation == null)
+            {
+                Alert error = new Alert(Alert.AlertType.WARNING, "Valitse Varaus poistaaksesi");
+                error.showAndWait();
+                return;
+            }
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista poisto");
+            confirmation.setHeaderText("Oletko varma, että haluat poistaa varauksen?");
+            confirmation.setContentText("Poistoa EI VOI perua");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        Reservation.removeReservationFromDatabase(selectedReservation);
+
+                        reservationTable.getItems().remove(selectedReservation);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe poistamisessa");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        // Show buttons
+        HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
+
+        mainLayout.setTop(topButtonBox);
+
         System.out.println("Reservation Management opened.");
+    }
+
+    // Reservation edit window
+    private void openReservationEditWindow(Reservation reservation, ObservableList<Reservation> tableData)
+    {
+        // Pop-up window
+        Stage window = new Stage();
+        window.setTitle("Muokkaa varauksen tietoja");
+
+        // Modifiable fields
+        TextField customerField = new TextField(String.valueOf(reservation.getCustomerId()));
+        TextField cabinField = new TextField(String.valueOf(reservation.getCabinId()));
+        TextField startField = new TextField(String.valueOf(reservation.getStartDate()));
+        TextField endField = new TextField(String.valueOf(reservation.getEndDate()));
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista muutokset");
+            confirmation.setHeaderText("Oletko varma, että haluat tallentaa muutokset?");
+            confirmation.setContentText("Tallennusta EI VOI perua!");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        reservation.setCustomerId(Integer.parseInt(customerField.getText()));
+                        reservation.setCabinId(Integer.parseInt(cabinField.getText()));
+                        LocalDate localStart = LocalDate.parse(startField.getText()); // Parse to YYYY-MM-DD
+                        Date sqlStart = Date.valueOf(localStart);                     // Convert to java.sql.Date
+                        reservation.setStartDate(sqlStart);                           // Set with .sql. date
+                        LocalDate localEnd = LocalDate.parse(endField.getText());
+                        Date sqlEnd = Date.valueOf(localEnd);
+                        reservation.setEndDate(sqlEnd);
+                        LocalDate localUpdate = LocalDate.now();
+                        Date sqlUpdate = Date.valueOf(localUpdate);
+                        reservation.setUpdateDate(sqlUpdate);
+
+                        // Update table in database
+                        Reservation.updateReservationInDatabase(reservation);
+
+                        // Close edit window and refresh table
+                        window.close();
+                        showReservationManagement(); // NOT EVEN TESTING .refresh
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                        error.showAndWait();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            customerField, cabinField, startField, endField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+    }
+
+    // Reservation add window
+    private void openReservationAddWindow()
+    {
+        Stage window = new Stage();
+        window.setTitle("Lisää varaus");
+
+        // Get lowest available ID
+        int newId;
+        try
+        {
+            newId = Reservation.getNewId();
+        }
+        catch (SQLException ex)
+        {
+            ex.printStackTrace();
+            Alert error = new Alert(Alert.AlertType.ERROR, "Tietokantavirhe ID haussa");
+            error.showAndWait();
+            return;
+        }
+
+        // Modifiable fields
+        TextField customerField = new TextField();
+        TextField cabinField = new TextField();
+        TextField startField = new TextField();
+        TextField endField = new TextField();
+
+        // Text for each field
+        customerField.setPromptText("Asiakas ID");
+        cabinField.setPromptText("Mökki ID");
+        startField.setPromptText("Alkamispäivä (YYYY-MM-DD)");
+        endField.setPromptText("Loppumispäivä (YYYY-MM-DD)");
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                LocalDate localStart = LocalDate.parse(startField.getText());
+                Date sqlStart = Date.valueOf(startField.getText());
+                LocalDate localEnd = LocalDate.parse(endField.getText());
+                Date sqlEnd = Date.valueOf(localEnd);
+                LocalDate currentDate = LocalDate.now();
+                Date sqlDate = Date.valueOf(currentDate);
+
+                Reservation newReservation = new Reservation(
+                    newId, 
+                    Integer.parseInt(customerField.getText()), 
+                    Integer.parseInt(cabinField.getText()),
+                    sqlStart,
+                    sqlEnd,
+                    sqlDate,
+                    sqlDate
+                );
+                System.out.println(sqlStart);
+                System.out.println(sqlEnd);
+                System.out.println(sqlDate);
+
+                Reservation.addReservationToDatabase(newReservation);
+                System.out.println(":DDDD");
+
+                window.close();
+                showReservationManagement();
+            }
+            catch (NumberFormatException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (SQLException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+            }
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            new Label("Asiakas ID:"), customerField,
+            new Label("Mökki ID:"), cabinField,
+            new Label("Alkamispäivä (YYYY-MM-DD):"), startField,
+            new Label("Loppumispäivä (YYYY-MM-DD):"), endField,
+            saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
     }
 
     private void showCustomerManagement() 
