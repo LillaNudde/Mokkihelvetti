@@ -23,7 +23,7 @@ public class Cabin
     private int wcAmount;
     private String summary;
     // Database address "jdbc:sqlite:DISK:\\Path\\To\\File.db"
-    private static final String DB_URL = "jdbc:sqlite:D:\\Documents\\Mökkihelvetti\\database.db";
+    private static final String DB_URL = "jdbc:sqlite:C:\\Users\\nuutt\\Documents\\Mökkihelvetti\\database.db";
 
     // Getters & Setters
     public int getCabinId() 
