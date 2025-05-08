@@ -70,8 +70,8 @@ public class GUI extends Application
        VBox buttonBox = new VBox(
             createMenuButton("Mökkien hallinta", this::showCabinManagement),
             createMenuButton("Majoitusvarausten hallinta", this::showReservationManagement),
-            createMenuButton("Asiakashallinta", this::showCustomerManagement),
-            createMenuButton("Laskujen hallinta ja seuranta", this::showBillingManagement),
+            createMenuButton("Asiakashallinta", this::showClientManagement),
+            createMenuButton("Laskujen hallinta ja seuranta", this::showInvoiceManagement),
             createMenuButton("Majoittumisen raportointi", this::showAccommodationReports)
        );
        buttonBox.setSpacing(25);
@@ -190,7 +190,6 @@ public class GUI extends Application
 
                         cabinTable.getItems().remove(selectedCabin);
                     }
-                    
                     catch (Exception ex)
                     {
                         ex.printStackTrace();
@@ -639,12 +638,8 @@ public class GUI extends Application
                     sqlDate,
                     sqlDate
                 );
-                System.out.println(sqlStart);
-                System.out.println(sqlEnd);
-                System.out.println(sqlDate);
 
                 Reservation.addReservationToDatabase(newReservation);
-                System.out.println(":DDDD");
 
                 window.close();
                 showReservationManagement();
@@ -677,19 +672,761 @@ public class GUI extends Application
         window.show();
     }
 
-    private void showCustomerManagement() 
+    private void showClientManagement() 
     {
+        // Clear the window
+        mainLayout.setCenter(null);
+
+        // Dataless TableView
+        TableView<Client> clientTable = new TableView<>();
+
+        // Column hell
+        TableColumn<Client, Integer> clientId = new TableColumn<>("Asiakas ID");
+        clientId.setCellValueFactory(new PropertyValueFactory<>("clientId"));
+
+        TableColumn<Client, String> name = new TableColumn<>("Nimi");
+        name.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<Client, String> email = new TableColumn<>("Sähköposti");
+        email.setCellValueFactory(new PropertyValueFactory<>("email"));
+
+        TableColumn<Client, Boolean> corporate = new TableColumn<>("Yritysasiakas");
+        corporate.setCellValueFactory(new PropertyValueFactory<>("corporate"));
+
+        TableColumn<Client, String> corporateId = new TableColumn<>("Y-Tunnus");
+        corporateId.setCellValueFactory(new PropertyValueFactory<>("corporateId"));
+
+        TableColumn<Client, String> phoneNumber = new TableColumn<>("Puhelinnumero");
+        phoneNumber.setCellValueFactory(new PropertyValueFactory<>("phoneNumber"));
+
+        // Columns to table
+        clientTable.getColumns().addAll(
+            clientId, name, email,
+            corporate, corporateId, phoneNumber);
+
+        // Add Clients to list
+        List<Client> clients = Client.getClientsFromDatabase();
+        ObservableList<Client> data = FXCollections.observableArrayList(clients);
+        clientTable.setItems(data);
+
+        // Show list
+        mainLayout.setCenter(clientTable);
+
+        // Buttons
+        Button backButton = new Button("Takaisin");
+        backButton.setOnAction(e -> showMainMenu());
+
+        Button modifyButton = new Button("Muokkaa");
+        modifyButton.setOnAction(e ->
+        {
+            Client selectedClient = clientTable.getSelectionModel().getSelectedItem();
+            if (selectedClient != null)
+            {
+                openClientEditWindow(selectedClient, data);
+            }
+            else
+            {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Valitse rivi muokattavaksi");
+                alert.showAndWait();
+            }
+        });
+
+        Button addButton = new Button("Lisää");
+        addButton.setOnAction(e -> openClientAddWindow());
+
+        Button deleteButton = new Button("Poista");
+        deleteButton.setOnAction(e ->
+        {
+            Client selectedClient = clientTable.getSelectionModel().getSelectedItem();
+
+            if (selectedClient == null)
+            {
+                Alert error = new Alert(Alert.AlertType.WARNING, "Valitse Asiakas poistaaksesi");
+                error.showAndWait();
+                return;
+            }
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista Poisto");
+            confirmation.setHeaderText("Oletko varma, että haluat poistaa asiakkaan?");
+            confirmation.setContentText("Poistoa EI VOI perua");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        Client.removeClientFromDatabase(selectedClient);
+
+                        clientTable.getItems().remove(selectedClient);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe poistamisessa");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
+
+        mainLayout.setTop(topButtonBox);
+
         System.out.println("Customer Management opened.");
     }
 
-    private void showBillingManagement() 
+    private void openClientEditWindow(Client client, ObservableList<Client> tableData)
     {
+        // Pop-up window
+        Stage window = new Stage();
+        window.setTitle("Muokkaa asiakkaan tietoja");
+
+        // Modifiable fields
+        TextField nameField = new TextField(String.valueOf(client.getName()));
+        TextField emailField = new TextField(String.valueOf(client.getEmail()));
+        CheckBox corporateBox = new CheckBox("Yritysasiakas");
+        corporateBox.setSelected(client.getCorporate());
+        TextField corporateIdField = new TextField(String.valueOf(client.getCorporateId()));
+        TextField phoneNumberField = new TextField(String.valueOf(client.getPhoneNumber()));
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista muutokset");
+            confirmation.setHeaderText("Oletko varma, että haluat tallentaa muutokset?");
+            confirmation.setContentText("Tallennusta EI VOI perua!");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        client.setName(nameField.getText());
+                        client.setEmail(emailField.getText());
+                        client.setCorporate(corporateBox.isSelected());
+                        client.setCorporateId(corporateIdField.getText());
+                        client.setPhoneNumber(phoneNumberField.getText());
+
+                        // Update table in database
+                        Client.updateClientInDatabase(client);
+
+                        // Close edit window and refresh table
+                        window.close();
+                        showClientManagement(); // .refresh NOT POSSIBLE WITHOUT VOODOO
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa.");
+                        error.showAndWait();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa.");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            nameField, emailField, corporateBox,
+            corporateIdField, phoneNumberField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+    }
+
+    // Cabin add window
+    private void openClientAddWindow()
+    {
+        Stage window = new Stage();
+        window.setTitle("Lisää asiakas");
+
+        // Get lowest available ID
+        int newId;
+        try
+        {
+            newId = Client.getNewId();
+        }
+        catch (SQLException ex)
+        {
+            ex.printStackTrace();
+            Alert error = new Alert(Alert.AlertType.ERROR, "Tietokantavirhe ID haussa");
+            error.showAndWait();
+            return;
+        }
+
+        // Modifiable fields
+        TextField nameField = new TextField();
+        TextField emailField = new TextField();
+        CheckBox corporateBox = new CheckBox("Yritysasiakas");
+        TextField corporateIdField = new TextField();
+        TextField phoneNumberField = new TextField();
+
+        // Text for each field
+        nameField.setPromptText("Nimi");
+        emailField.setPromptText("Sähköposti");
+        corporateIdField.setPromptText("Y-Tunnus");
+        phoneNumberField.setPromptText("Puhelinnumero");
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                Client newClient = new Client(
+                    newId,
+                    nameField.getText(),
+                    emailField.getText(),
+                    corporateBox.isSelected(),
+                    corporateIdField.getText(),
+                    phoneNumberField.getText()
+                );
+
+                Client.addClientToDatabase(newClient);
+
+                window.close();
+                showClientManagement();
+            }
+            catch (NumberFormatException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (SQLException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+                error.showAndWait();
+            }
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            new Label("Nimi:"), nameField,
+            new Label("Sähköposti"), emailField,
+            corporateBox,
+            new Label("Y-Tunnus"), corporateIdField,
+            new Label("Puhelinnumero"), phoneNumberField,
+            saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+    }
+
+    private void showInvoiceManagement() 
+    {
+        // Clear the window
+        mainLayout.setCenter(null);
+
+        // Dataless TableView
+        TableView<Invoice> invoiceTable = new TableView<>();
+
+        // Column hell
+        TableColumn<Invoice, Integer> invoiceId = new TableColumn<>("Lasku ID");
+        invoiceId.setCellValueFactory(new PropertyValueFactory<>("invoiceId"));
+
+        TableColumn<Invoice, Integer> reservationId = new TableColumn<>("Varaus ID");
+        reservationId.setCellValueFactory(new PropertyValueFactory<>("reservationId"));
+
+        TableColumn<Invoice, Integer> clientId = new TableColumn<>("Asiakas ID");
+        clientId.setCellValueFactory(new PropertyValueFactory<>("clientId"));
+
+        TableColumn<Invoice, String> invoiceType = new TableColumn<>("Laskun tyyppi");
+        invoiceType.setCellValueFactory(new PropertyValueFactory<>("invoiceType"));
+
+        TableColumn<Invoice, Integer> invoicePrice = new TableColumn<>("Laskun summa");
+        invoicePrice.setCellValueFactory(new PropertyValueFactory<>("invoicePrice"));
+
+        TableColumn<Invoice, Date> invoiceDueDate = new TableColumn<>("Eräpäivä");
+        invoiceDueDate.setCellValueFactory(new PropertyValueFactory<>("invoiceDueDate"));
+
+        // Columns to table
+        invoiceTable.getColumns().addAll(
+            invoiceId, reservationId, clientId,
+            invoiceType, invoicePrice, invoiceDueDate
+        );
+
+        // Add Invoices to list
+        List<Invoice> invoices = Invoice.getInvoicesFromDatabase();
+        ObservableList<Invoice> data = FXCollections.observableArrayList(invoices);
+        invoiceTable.setItems(data);
+
+        // Show list
+        mainLayout.setCenter(invoiceTable);
+
+        // Buttons
+        Button backButton = new Button("Takaisin");
+        backButton.setOnAction(e -> showMainMenu());
+
+        Button modifyButton = new Button("Muokkaa");
+        modifyButton.setOnAction(e ->
+        {
+            Invoice selectedInvoice = invoiceTable.getSelectionModel().getSelectedItem();
+            if (selectedInvoice != null)
+            {
+                openInvoiceEditWindow(selectedInvoice, data);
+            }
+            else
+            {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Valitse rivi muokattavaksi");
+                alert.showAndWait();
+            }
+        });
+
+        Button addButton = new Button("Lisää");
+        addButton.setOnAction(e -> openInvoiceAddWindow());
+
+        Button deleteButton = new Button("Poista");
+        deleteButton.setOnAction(e ->
+        {
+            Invoice selectedInvoice = invoiceTable.getSelectionModel().getSelectedItem();
+            
+            if (selectedInvoice == null)
+            {
+                Alert warning = new Alert(Alert.AlertType.WARNING, "Valitse Lasku poistaaksesi");
+                warning.showAndWait();
+                return;
+            }
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista Poisto");
+            confirmation.setHeaderText("Oletko varma, että haluat poistaa laskun?");
+            confirmation.setContentText("Poistoa EI VOI perua");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        Invoice.removeInvoiceFromDatabase(selectedInvoice);
+
+                        invoiceTable.getItems().remove(selectedInvoice);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe poistamisessa");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        // Show buttons
+        HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
+
+        mainLayout.setTop(topButtonBox);
+
+
         System.out.println("Billing Management opened.");
+    }
+
+    private void openInvoiceEditWindow(Invoice invoice, ObservableList<Invoice> tableData)
+    {
+        // Pop-up window
+        Stage window = new Stage();
+        window.setTitle("Muokkaa laskun tietoja");
+
+        // Modifiable fields
+        TextField reservationField = new TextField(String.valueOf(invoice.getReservationId()));
+        TextField clientField = new TextField(String.valueOf(invoice.getClientId()));
+        TextField typeField = new TextField(String.valueOf(invoice.getInvoiceType()));
+        TextField priceField = new TextField(String.valueOf(invoice.getInvoicePrice()));
+        TextField dueDateField = new TextField(String.valueOf(invoice.getInvoiceDueDate()));
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista muutokset");
+            confirmation.setHeaderText("Oletko varma, että haluat tallentaa muutokset?");
+            confirmation.setContentText("Tallennusta EI VOI perua!");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        invoice.setReservationId(Integer.parseInt(reservationField.getText()));
+                        invoice.setClientId(Integer.parseInt(clientField.getText()));
+                        invoice.setInvoiceType(typeField.getText());
+                        invoice.setInvoicePrice(Integer.parseInt(priceField.getText()));
+
+                        LocalDate dueDate = LocalDate.parse(dueDateField.getText());
+                        Date sqlDueDate = Date.valueOf(dueDate);
+                        invoice.setInvoiceDueDate(sqlDueDate);
+
+                        // Update table in database
+                        Invoice.updateInvoiceInDatabase(invoice);
+
+                        // Close edit window and refresh table
+                        window.close();
+                        showInvoiceManagement(); // VOODOOBAN
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                        error.showAndWait();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            reservationField, clientField,
+            typeField, priceField,
+            dueDateField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+
+    }
+
+    // Invoice add window
+    private void openInvoiceAddWindow()
+    {
+        Stage window = new Stage();
+        window.setTitle("Lisää lasku");
+
+        // Get lowest available ID
+        int newId;
+        try
+        {
+            newId = Invoice.getNewId();
+        }
+        catch (SQLException ex)
+        {
+            ex.printStackTrace();
+            Alert error = new Alert(Alert.AlertType.ERROR, "Tietokantavirhe ID haussa");
+            error.showAndWait();
+            return;
+        }
+
+        // Modifiable fields
+        TextField reservationField = new TextField();
+        TextField clientField = new TextField();
+        TextField typeField = new TextField();
+        TextField priceField = new TextField();
+        TextField dueDateField = new TextField();
+
+        // Text for each field
+        reservationField.setPromptText("Varaus ID");
+        clientField.setPromptText("Asiakas ID");
+        typeField.setPromptText("Laskun tyyppi");
+        priceField.setPromptText("Laskun summa");
+        dueDateField.setPromptText("Eräpäivä (YYYY-MM-DD)");
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                LocalDate dueDate = LocalDate.parse(dueDateField.getText());
+                Date sqlDueDate = Date.valueOf(dueDate);
+
+                Invoice newInvoice = new Invoice(
+                    newId,
+                    Integer.parseInt(reservationField.getText()),
+                    Integer.parseInt(clientField.getText()),
+                    typeField.getText(),
+                    Integer.parseInt(priceField.getText()),
+                    sqlDueDate
+                );
+
+                Invoice.addInvoiceToDatabase(newInvoice);
+
+                window.close();
+                showInvoiceManagement();
+            }
+            catch (NumberFormatException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (SQLException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+            }
+        });
+
+        // Show layout
+        VBox layout = new VBox(
+            new Label("Varaus ID:"), reservationField,
+            new Label("Asiakas ID:"), clientField,
+            new Label("Laskun tyyppi:"), typeField,
+            new Label("Laskun summa:"), priceField,
+            new Label("Eräpäivä (YYYY-MM-DD):"), dueDateField,
+            saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
     }
 
     private void showAccommodationReports() 
     {
+
+        // Cleart the window
+        mainLayout.setCenter(null);
+
+        // Dataless TableView
+        TableView<Report> reportTable = new TableView<>();
+
+        // Column heaven :)
+        TableColumn<Report, Integer> reportId = new TableColumn("Raportti ID");
+        reportId.setCellValueFactory(new PropertyValueFactory<>("reportId"));
+
+        TableColumn<Report, Integer> reservationId = new TableColumn<>("Varaus ID");
+        reservationId.setCellValueFactory(new PropertyValueFactory<>("reservationId"));
+
+        TableColumn<Report, String> summary = new TableColumn<>("Tiivistelmä");
+        summary.setCellValueFactory(new PropertyValueFactory<>("summary"));
+
+        // Columns to table
+        reportTable.getColumns().addAll(reportId, reservationId, summary);
+
+        // Add Reports to list
+        List<Report> reports = Report.getReportsFromDatabase();
+        ObservableList<Report> data = FXCollections.observableArrayList(reports);
+        reportTable.setItems(data);
+
+        // Show list
+        mainLayout.setCenter(reportTable);
+
+        // Buttons
+        Button backButton = new Button("Takaisin");
+        backButton.setOnAction(e -> showMainMenu());
+
+        Button modifyButton = new Button("Muokkaa");
+        modifyButton.setOnAction(e ->
+        {
+            Report selectedReport = reportTable.getSelectionModel().getSelectedItem();
+            if (selectedReport != null)
+            {
+                openReportEditWindow(selectedReport, data);
+            }
+            else
+            {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Valitse rivi muokattavaksi");
+                alert.showAndWait();
+            }
+        });
+        
+        Button addButton = new Button("Lisää");
+        addButton.setOnAction(e -> openReportAddWindow());
+
+        Button deleteButton = new Button("Poista");
+        deleteButton.setOnAction(e ->
+        {
+            Report selectedReport = reportTable.getSelectionModel().getSelectedItem();
+
+            if (selectedReport == null)
+            {
+                Alert error = new Alert(Alert.AlertType.WARNING, "Valitse Asiakas poistaaksesi");
+                error.showAndWait();
+                return;
+            }
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista Poisto");
+            confirmation.setHeaderText("Oletko varma, että haluat poistaa raportin?");
+            confirmation.setContentText("Poistoa EI VOI perua");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        Report.removeReportFromDatabase(selectedReport);
+
+                        reportTable.getItems().remove(selectedReport);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe poistamisessa");
+                        error.showAndWait();
+                    }
+                }
+                
+            });
+        });
+
+        HBox topButtonBox = new HBox(backButton, modifyButton, addButton, deleteButton);
+
+        mainLayout.setTop(topButtonBox);
+
         System.out.println("Accommodation Reports opened.");
+    }
+
+    private void openReportEditWindow(Report report, ObservableList<Report> tableData)
+    {
+        Stage window = new Stage();
+        window.setTitle("Muokkaa raporttia");
+
+        // Modifiable fields
+        TextField reservationField = new TextField(String.valueOf(report.getReservationId()));
+        TextField summaryField = new TextField(String.valueOf(report.getSummary()));
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Vahvista muutokset");
+            confirmation.setHeaderText("Oletko varma, että haluat tallentaa muutokset?");
+            confirmation.setContentText("Tallennusta EI VOI perua!");
+
+            confirmation.showAndWait().ifPresent(response ->
+            {
+                if (response == ButtonType.OK)
+                {
+                    try
+                    {
+                        report.setReservationId(Integer.parseInt(reservationField.getText()));
+                        report.setSummary(summaryField.getText());
+
+                        // Update table in database
+                        Report.updateReportInDatabase(report);
+
+                        // Close edit window and refresh table
+                        window.close();
+                        showClientManagement(); // Voodooban
+                    }
+                    catch (NumberFormatException nfe)
+                    {
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa.");
+                        error.showAndWait();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                        Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa.");
+                        error.showAndWait();
+                    }
+                }
+            });
+        });
+
+        summaryField.setPrefSize(250, 250);
+
+        // Show layout
+        VBox layout = new VBox(
+            reservationField, summaryField, saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
+    }
+
+    // Report add window
+    private void openReportAddWindow()
+    {
+        Stage window = new Stage();
+        window.setTitle("Lisää raportti");
+
+        // Get lowest available ID
+        int newId;
+        try
+        {
+            newId = Report.getNewId();
+        }
+        catch (SQLException ex)
+        {
+            ex.printStackTrace();
+            Alert error = new Alert(Alert.AlertType.ERROR, "Tietokantavirhe ID haussa");
+            error.showAndWait();
+            return;
+        }
+
+        // Modifiable fields
+        TextField reservationField = new TextField();
+        TextField summaryField = new TextField();
+
+        // Text for each field
+        reservationField.setPromptText("Varaus ID");
+        summaryField.setPromptText("Tiivistelmä");
+
+        // Save button
+        Button saveButton = new Button("Tallenna");
+        saveButton.setOnAction(e ->
+        {
+            try
+            {
+                Report newReport = new Report
+                (
+                    newId, 
+                    Integer.parseInt(reservationField.getText()), 
+                    summaryField.getText()
+                );
+
+                Report.addReportToDatabase(newReport);
+
+                window.close();
+                showAccommodationReports();
+            }
+            catch (NumberFormatException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Jokin kenttä sisältää virheellistä tietoa");
+                error.showAndWait();
+            }
+            catch (SQLException ex)
+            {
+                ex.printStackTrace();
+                Alert error = new Alert(Alert.AlertType.ERROR, "Virhe Tietojen Tallennuksessa");
+                error.showAndWait();
+            }
+        });
+
+        summaryField.setPrefSize(250, 250);
+
+        // Show layout
+        VBox layout = new VBox(
+            new Label("Varaus ID:"), reservationField,
+            new Label("Tiivistelmä"), summaryField,
+            saveButton
+        );
+
+        layout.setSpacing(10);
+        layout.setAlignment(Pos.CENTER);
+        window.setScene(new Scene(layout, 400, 800));
+        window.show();
     }
 
 }
