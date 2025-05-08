@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 public class Reservation 
@@ -24,7 +25,7 @@ public class Reservation
     private Date creationDate;
     private Date updateDate;
     // Database address "jdbc:sqlite:DISK:\\Path\\To\\File.db"
-    private static final String DB_URL = "jdbc:sqlite:D:\\Documents\\Mökkihelvetti\\database.db";
+    private static final String DB_URL = "jdbc:sqlite:C:\\Users\\nuutt\\Documents\\Mökkihelvetti\\database.db";
 
     public int getReservationId() 
     {
@@ -149,17 +150,17 @@ public class Reservation
                 String updateDateString = rs.getString("Päivityspäivä");
     
                 // Parse dates using SimpleDateFormat
-                java.sql.Date startDate = startDateString != null ? new java.sql.Date(dateFormat.parse(startDateString).getTime()) : null;
-                java.sql.Date endDate = endDateString != null ? new java.sql.Date(dateFormat.parse(endDateString).getTime()) : null;
-                java.sql.Date creationDate = creationDateString != null ? new java.sql.Date(dateFormat.parse(creationDateString).getTime()) : null;
-                java.sql.Date updateDate = updateDateString != null ? new java.sql.Date(dateFormat.parse(updateDateString).getTime()) : null;
-    
+                Date startDate = StringToDate(startDateString);
+                Date endDate = StringToDate(endDateString);
+                Date creationDate = StringToDate(creationDateString);
+                Date updateDate = StringToDate(updateDateString);
+                
                 // Add to reservations list
                 Reservation reservation = new Reservation(reservationId, customerId, cabinId, startDate,
                                                           endDate, creationDate, updateDate);
                 reservations.add(reservation);
             }
-        } catch (SQLException | java.text.ParseException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return reservations;
@@ -175,10 +176,10 @@ public class Reservation
         {
             stmt.setInt(1, reservation.getCustomerId());
             stmt.setInt(2, reservation.getCabinId());
-            stmt.setDate(3, reservation.getStartDate());
-            stmt.setDate(4, reservation.getEndDate());
-            stmt.setDate(5, reservation.getCreationDate());
-            stmt.setDate(6, reservation.getUpdateDate());
+            stmt.setString(3, DateToString(reservation.getStartDate()));
+            stmt.setString(4, DateToString(reservation.getEndDate()));
+            stmt.setString(5, DateToString(reservation.getCreationDate()));
+            stmt.setString(6, DateToString(reservation.getUpdateDate()));
             stmt.setInt(7, reservation.getReservationId());
 
             stmt.executeUpdate();
@@ -188,6 +189,41 @@ public class Reservation
             e.printStackTrace();
         }
     }
+
+    static SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+
+    public static String DateToString(Date date)
+    {
+        String formattedDate = "";
+        try
+        {
+            formattedDate = formatter.format(date);
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        return formattedDate;
+    }
+
+    public static java.sql.Date StringToDate(String date) 
+    {
+        if (date == null || date.isEmpty()) 
+        {
+            return new java.sql.Date(System.currentTimeMillis());
+        }
+
+        try 
+        {
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+            java.util.Date utilDate = formatter.parse(date);
+            return new java.sql.Date(utilDate.getTime());
+        } catch (Exception e) 
+        {
+            e.printStackTrace();
+            return new java.sql.Date(System.currentTimeMillis());
+        }
+    }    
 
     // Method to create new Reservation
     public static void addReservationToDatabase(Reservation reservation) throws SQLException
@@ -201,10 +237,10 @@ public class Reservation
             stmt.setInt(1, reservation.getReservationId());
             stmt.setInt(2, reservation.getCustomerId());
             stmt.setInt(3, reservation.getCabinId());
-            stmt.setDate(4, reservation.getStartDate());
-            stmt.setDate(5, reservation.getEndDate());
-            stmt.setDate(6, reservation.getCreationDate());
-            stmt.setDate(7, reservation.getUpdateDate());
+            stmt.setString(4, DateToString(reservation.getStartDate()));
+            stmt.setString(5, DateToString(reservation.getEndDate()));
+            stmt.setString(6, DateToString(reservation.getCreationDate()));
+            stmt.setString(7, DateToString(reservation.getUpdateDate()));
 
             stmt.executeUpdate();
         }
