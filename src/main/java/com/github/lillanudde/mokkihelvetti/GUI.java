@@ -1324,7 +1324,7 @@ public class GUI extends Application
 
                         // Close edit window and refresh table
                         window.close();
-                        showClientManagement(); // Voodooban
+                        showAccommodationReports();// Voodooban
                     }
                     catch (NumberFormatException nfe)
                     {
