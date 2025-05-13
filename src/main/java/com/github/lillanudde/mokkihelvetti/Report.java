@@ -16,8 +16,8 @@ public class Report
     private int reportId;
     private int reservationId;
     private String summary;
-
-    private static final String DB_URL = "jdbc:sqlite:C:\\Users\\nuutt\\Documents\\Mökkihelvetti\\database.db";
+    // Database address "jdbc:sqlite:DISK:\\Path\\To\\File.db"
+    private static final String DB_URL = "jdbc:sqlite:C:\\Mökkihelvetti\\database.db";
 
     public int getReportId() 
     {
